@@ -103,25 +103,33 @@ export async function renderRoute(routePath, req = null) {
 export async function handler(req, res) {
 	try {
 		// Extract route from URL path
-		// For catch-all routes, try req.query.path first, otherwise use req.url
 		let routePath;
 
 		if (req.query && req.query.path && Array.isArray(req.query.path)) {
 			// Catch-all route: /api/[[...path]] provides path as array
 			routePath = req.query.path.join('/');
 		} else if (req.url) {
-			// Fallback to req.url
-			routePath = req.url;
+			// Parse URL to get pathname without query string
+			// req.url might be just the path, or a full URL
+			let urlPath = req.url;
+
+			// Remove query string if present
+			const queryIndex = urlPath.indexOf('?');
+			if (queryIndex !== -1) {
+				urlPath = urlPath.substring(0, queryIndex);
+			}
 
 			// Remove /api prefix if present (from Vercel rewrite)
-			if (routePath.startsWith('/api/')) {
-				routePath = routePath.slice(5);
+			if (urlPath.startsWith('/api/')) {
+				urlPath = urlPath.slice(5);
 			}
 
 			// Remove leading slash
-			if (routePath.startsWith('/')) {
-				routePath = routePath.slice(1);
+			if (urlPath.startsWith('/')) {
+				urlPath = urlPath.slice(1);
 			}
+
+			routePath = urlPath;
 		} else {
 			routePath = '';
 		}
