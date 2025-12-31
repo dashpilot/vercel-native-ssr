@@ -105,7 +105,7 @@ export async function handler(req, res) {
 		// Extract route from URL path
 		let routePath;
 
-		if (req.query && req.query.path && Array.isArray(req.query.path)) {
+		if (req.query && req.query.path && Array.isArray(req.query.path) && req.query.path.length > 0) {
 			// Catch-all route: /api/[[...path]] provides path as array
 			routePath = req.query.path.join('/');
 		} else if (req.url) {
@@ -122,6 +122,9 @@ export async function handler(req, res) {
 			// Remove /api prefix if present (from Vercel rewrite)
 			if (urlPath.startsWith('/api/')) {
 				urlPath = urlPath.slice(5);
+			} else if (urlPath === '/api') {
+				// Handle /api without trailing slash
+				urlPath = '';
 			}
 
 			// Remove leading slash
