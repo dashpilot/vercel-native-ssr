@@ -137,7 +137,7 @@ export async function renderRoute(routePath, req = null) {
 		const { script, template } = parseRouteFile(content);
 
 		// Execute the script to get data
-		const data = await executeScript(script, req);
+		let data = await executeScript(script, req);
 
 		// Add current path to data for templates
 		// Extract current path from route path (for menu active state, etc.)
