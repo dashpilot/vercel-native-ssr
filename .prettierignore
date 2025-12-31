@@ -1,0 +1,9 @@
+# Routes - contain custom script/template tags
+routes/**/*.html
+
+# Partials - contain Handlebars syntax
+partials/**/*.html
+
+# API routes
+api/**/*.js
+

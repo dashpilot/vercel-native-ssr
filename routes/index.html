@@ -5,52 +5,40 @@
 
 	// Export data to template
 	exports.data = posts;
+	exports.title = 'Home';
 </script>
 
 <template>
-	<!doctype html>
-	<html lang="en">
-		<head>
-			<meta charset="UTF-8" />
-			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-			<title>Vercel Native SSR</title>
-			<style>
-				body {
-					font-family:
-						system-ui,
-						-apple-system,
-						sans-serif;
-					max-width: 800px;
-					margin: 0 auto;
-					padding: 2rem;
-					line-height: 1.6;
-				}
-				h1 {
-					color: #333;
-				}
-				ul {
-					list-style: none;
-					padding: 0;
-				}
-				li {
-					background: #f5f5f5;
-					margin: 1rem 0;
-					padding: 1rem;
-					border-radius: 8px;
-					border-left: 4px solid #0070f3;
-				}
-				h2 {
-					margin: 0 0 0.5rem 0;
-					color: #0070f3;
-				}
-				p {
-					margin: 0;
-					color: #666;
-				}
-			</style>
-		</head>
-		<body>
-			{{> menu}}
+	{{> header}}
+	<style>
+		h1 {
+			color: #333;
+			margin-bottom: 1.5rem;
+		}
+		ul {
+			list-style: none;
+			padding: 0;
+		}
+		li {
+			background: #f5f5f5;
+			margin: 1rem 0;
+			padding: 1rem;
+			border-radius: 8px;
+			border-left: 4px solid #0070f3;
+		}
+		h2 {
+			margin: 0 0 0.5rem 0;
+			color: #0070f3;
+			font-size: 1.25rem;
+		}
+		p {
+			margin: 0;
+			color: #666;
+		}
+	</style>
+	<body>
+		{{> menu}}
+		<main>
 			<h1>Posts</h1>
 			<ul>
 				{{#each data}}
@@ -60,6 +48,6 @@
 				</li>
 				{{/each}}
 			</ul>
-		</body>
-	</html>
+		</main>
+	{{> footer}}
 </template>
