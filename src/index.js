@@ -1,0 +1,149 @@
+import Handlebars from 'handlebars';
+import { readFile } from 'fs/promises';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+/**
+ * Parses a route file with <script> and <template> sections
+ */
+function parseRouteFile(content) {
+	const scriptMatch = content.match(/<script>([\s\S]*?)<\/script>/);
+	const templateMatch = content.match(/<template>([\s\S]*?)<\/template>/);
+
+	if (!scriptMatch || !templateMatch) {
+		throw new Error('Route file must contain both <script> and <template> sections');
+	}
+
+	return {
+		script: scriptMatch[1].trim(),
+		template: templateMatch[1].trim()
+	};
+}
+
+/**
+ * Executes the script code in a safe context and returns the data
+ */
+async function executeScript(scriptCode, req) {
+	// Create a module-like environment where data can be exported
+	const moduleExports = {};
+	const exports = moduleExports;
+
+	// Create context with common globals
+	const context = {
+		exports,
+		fetch: globalThis.fetch,
+		Request: globalThis.Request,
+		Response: globalThis.Response,
+		URL: globalThis.URL,
+		console: globalThis.console,
+		req // Pass the request object for access to headers, query params, etc.
+	};
+
+	try {
+		// Wrap the script in an async function that can use all context variables
+		const functionBody = `
+      return (async () => {
+        ${scriptCode}
+        return exports;
+      })();
+    `;
+
+		// Build function parameters from context keys
+		const paramNames = Object.keys(context);
+		const paramValues = Object.values(context);
+
+		const fn = new Function(...paramNames, functionBody);
+		const result = await fn(...paramValues);
+
+		return result || {};
+	} catch (error) {
+		throw new Error(`Error executing script: ${error.message}`);
+	}
+}
+
+/**
+ * Renders a Handlebars template with data
+ */
+function renderTemplate(templateSource, data) {
+	const template = Handlebars.compile(templateSource);
+	return template(data);
+}
+
+/**
+ * Processes a route file and returns the rendered HTML
+ */
+export async function renderRoute(routePath, req = null) {
+	try {
+		// Read the route file
+		const projectRoot = process.cwd();
+		const fullPath = join(projectRoot, 'routes', routePath);
+		const content = await readFile(fullPath, 'utf-8');
+
+		// Parse the file
+		const { script, template } = parseRouteFile(content);
+
+		// Execute the script to get data
+		const data = await executeScript(script, req);
+
+		// Render the template with the data
+		const html = renderTemplate(template, data);
+
+		return html;
+	} catch (error) {
+		throw new Error(`Failed to render route ${routePath}: ${error.message}`);
+	}
+}
+
+/**
+ * Main handler function for Vercel serverless/edge functions
+ */
+export async function handler(req, res) {
+	try {
+		// Extract route from URL path
+		// For catch-all routes, try req.query.path first, otherwise use req.url
+		let routePath;
+
+		if (req.query && req.query.path && Array.isArray(req.query.path)) {
+			// Catch-all route: /api/[[...path]] provides path as array
+			routePath = req.query.path.join('/');
+		} else if (req.url) {
+			// Fallback to req.url
+			routePath = req.url;
+
+			// Remove /api prefix if present (from Vercel rewrite)
+			if (routePath.startsWith('/api/')) {
+				routePath = routePath.slice(5);
+			}
+
+			// Remove leading slash
+			if (routePath.startsWith('/')) {
+				routePath = routePath.slice(1);
+			}
+		} else {
+			routePath = '';
+		}
+
+		// Default to index.html if route is empty
+		if (!routePath || routePath === '') {
+			routePath = 'index.html';
+		} else {
+			// Add .html extension if not present
+			if (!routePath.endsWith('.html')) {
+				routePath = `${routePath}.html`;
+			}
+		}
+
+		// Render the route
+		const html = await renderRoute(routePath, req);
+
+		// Send response
+		res.setHeader('Content-Type', 'text/html; charset=utf-8');
+		res.status(200).send(html);
+	} catch (error) {
+		res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+		res.status(500).send(`Error: ${error.message}`);
+	}
+}

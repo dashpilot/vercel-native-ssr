@@ -1,0 +1,26 @@
+{
+  "name": "vercel-native-ssr",
+  "version": "1.0.0",
+  "description": "Server-first rendering library for Vercel with PHP-like file-based routing",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step needed'"
+  },
+  "keywords": [
+    "vercel",
+    "ssr",
+    "server-side-rendering",
+    "handlebars"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "handlebars": "^4.7.8"
+  },
+  "devDependencies": {
+    "vercel": "^33.0.0"
+  }
+}
+
