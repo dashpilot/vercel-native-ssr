@@ -1,10 +1,18 @@
 import Handlebars from 'handlebars';
-import { readFile } from 'fs/promises';
-import { join, dirname } from 'path';
+import { readFile, readdir } from 'fs/promises';
+import { join, dirname, extname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Cache for loaded partials
+let partialsLoaded = false;
+
+// Register Handlebars helpers
+Handlebars.registerHelper('eq', function (a, b) {
+	return a === b;
+});
 
 /**
  * Parses a route file with <script> and <template> sections
@@ -65,9 +73,52 @@ async function executeScript(scriptCode, req) {
 }
 
 /**
+ * Loads and registers Handlebars partials from the partials directory
+ */
+async function loadPartials() {
+	if (partialsLoaded) {
+		return; // Partials already loaded
+	}
+
+	try {
+		const projectRoot = process.cwd();
+		const partialsDir = join(projectRoot, 'partials');
+
+		try {
+			const files = await readdir(partialsDir);
+			const hbsFiles = files.filter(
+				(file) => extname(file) === '.hbs' || extname(file) === '.html'
+			);
+
+			for (const file of hbsFiles) {
+				const partialPath = join(partialsDir, file);
+				const content = await readFile(partialPath, 'utf-8');
+				// Remove extension for partial name (e.g., menu.hbs -> menu)
+				const partialName = file.replace(/\.(hbs|html)$/, '');
+				Handlebars.registerPartial(partialName, content);
+			}
+
+			partialsLoaded = true;
+		} catch (error) {
+			// Partials directory doesn't exist, that's okay
+			if (error.code !== 'ENOENT') {
+				console.warn('Warning: Could not load partials:', error.message);
+			}
+			partialsLoaded = true; // Mark as loaded even if directory doesn't exist
+		}
+	} catch (error) {
+		console.warn('Warning: Error loading partials:', error.message);
+		partialsLoaded = true; // Mark as loaded to prevent repeated errors
+	}
+}
+
+/**
  * Renders a Handlebars template with data
  */
-function renderTemplate(templateSource, data) {
+async function renderTemplate(templateSource, data) {
+	// Load partials before rendering (will only load once due to cache)
+	await loadPartials();
+
 	const template = Handlebars.compile(templateSource);
 	return template(data);
 }
@@ -88,8 +139,17 @@ export async function renderRoute(routePath, req = null) {
 		// Execute the script to get data
 		const data = await executeScript(script, req);
 
+		// Add current path to data for templates
+		// Extract current path from route path (for menu active state, etc.)
+		let currentPath = '/' + routePath.replace('.html', '');
+		if (currentPath === '/index') {
+			currentPath = '/';
+		}
+		// Merge currentPath into data object
+		data = { ...data, currentPath };
+
 		// Render the template with the data
-		const html = renderTemplate(template, data);
+		const html = await renderTemplate(template, data);
 
 		return html;
 	} catch (error) {
